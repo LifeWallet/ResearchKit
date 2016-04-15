@@ -63,6 +63,10 @@
 		147503BA1AEE807C004B17F3 /* ORKToneAudiometryStep.m in Sources */ = {isa = PBXBuildFile; fileRef = 147503B41AEE807C004B17F3 /* ORKToneAudiometryStep.m */; };
 		147503BB1AEE807C004B17F3 /* ORKToneAudiometryStepViewController.h in Headers */ = {isa = PBXBuildFile; fileRef = 147503B51AEE807C004B17F3 /* ORKToneAudiometryStepViewController.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		147503BC1AEE807C004B17F3 /* ORKToneAudiometryStepViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 147503B61AEE807C004B17F3 /* ORKToneAudiometryStepViewController.m */; };
+		1CA69D021CC0421100ED41F0 /* ORKLanguageHelper.h in Headers */ = {isa = PBXBuildFile; fileRef = 1CA69CFE1CC0421100ED41F0 /* ORKLanguageHelper.h */; };
+		1CA69D031CC0421100ED41F0 /* ORKLanguageHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = 1CA69CFF1CC0421100ED41F0 /* ORKLanguageHelper.m */; };
+		1CA69D041CC0421100ED41F0 /* ORKSingleton.h in Headers */ = {isa = PBXBuildFile; fileRef = 1CA69D001CC0421100ED41F0 /* ORKSingleton.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		1CA69D051CC0421100ED41F0 /* ORKSingleton.m in Sources */ = {isa = PBXBuildFile; fileRef = 1CA69D011CC0421100ED41F0 /* ORKSingleton.m */; };
 		241A2E871B94FD8800ED3B39 /* ORKPasscodeStepViewController_Internal.h in Headers */ = {isa = PBXBuildFile; fileRef = 241A2E861B94FD8800ED3B39 /* ORKPasscodeStepViewController_Internal.h */; };
 		2429D5721BBB5397003A512F /* ORKRegistrationStep.h in Headers */ = {isa = PBXBuildFile; fileRef = 2429D5701BBB5397003A512F /* ORKRegistrationStep.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		2429D5731BBB5397003A512F /* ORKRegistrationStep.m in Sources */ = {isa = PBXBuildFile; fileRef = 2429D5711BBB5397003A512F /* ORKRegistrationStep.m */; };
@@ -574,6 +578,11 @@
 		147503B41AEE807C004B17F3 /* ORKToneAudiometryStep.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ORKToneAudiometryStep.m; sourceTree = "<group>"; };
 		147503B51AEE807C004B17F3 /* ORKToneAudiometryStepViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ORKToneAudiometryStepViewController.h; sourceTree = "<group>"; };
 		147503B61AEE807C004B17F3 /* ORKToneAudiometryStepViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ORKToneAudiometryStepViewController.m; sourceTree = "<group>"; };
+		1CA69CFD1CC0418000ED41F0 /* PrefixHeader.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PrefixHeader.pch; sourceTree = "<group>"; };
+		1CA69CFE1CC0421100ED41F0 /* ORKLanguageHelper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ORKLanguageHelper.h; sourceTree = "<group>"; };
+		1CA69CFF1CC0421100ED41F0 /* ORKLanguageHelper.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ORKLanguageHelper.m; sourceTree = "<group>"; };
+		1CA69D001CC0421100ED41F0 /* ORKSingleton.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ORKSingleton.h; sourceTree = "<group>"; };
+		1CA69D011CC0421100ED41F0 /* ORKSingleton.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ORKSingleton.m; sourceTree = "<group>"; };
 		241A2E861B94FD8800ED3B39 /* ORKPasscodeStepViewController_Internal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ORKPasscodeStepViewController_Internal.h; sourceTree = "<group>"; };
 		2429D5701BBB5397003A512F /* ORKRegistrationStep.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ORKRegistrationStep.h; path = Onboarding/ORKRegistrationStep.h; sourceTree = "<group>"; };
 		2429D5711BBB5397003A512F /* ORKRegistrationStep.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ORKRegistrationStep.m; path = Onboarding/ORKRegistrationStep.m; sourceTree = "<group>"; };
@@ -1188,6 +1197,18 @@
 			name = "Tone Audiometry";
 			sourceTree = "<group>";
 		};
+		1CA69CFC1CC0416100ED41F0 /* LifeWallet additions */ = {
+			isa = PBXGroup;
+			children = (
+				1CA69CFD1CC0418000ED41F0 /* PrefixHeader.pch */,
+				1CA69CFE1CC0421100ED41F0 /* ORKLanguageHelper.h */,
+				1CA69CFF1CC0421100ED41F0 /* ORKLanguageHelper.m */,
+				1CA69D001CC0421100ED41F0 /* ORKSingleton.h */,
+				1CA69D011CC0421100ED41F0 /* ORKSingleton.m */,
+			);
+			name = "LifeWallet additions";
+			sourceTree = "<group>";
+		};
 		2429D56D1BBB52E4003A512F /* Onboarding */ = {
 			isa = PBXGroup;
 			children = (
@@ -1384,6 +1405,7 @@
 		86B623AF19520B770074CD3C /* ResearchKit */ = {
 			isa = PBXGroup;
 			children = (
+				1CA69CFC1CC0416100ED41F0 /* LifeWallet additions */,
 				B1C1DE4F196F541F00F75544 /* ResearchKit.h */,
 				B1B894391A00345200C5CF2D /* ResearchKit_Private.h */,
 				86C40B511A8D7C5B00081FAC /* Common */,
@@ -2287,6 +2309,7 @@
 				86C40D781A8D7C5C00081FAC /* ORKScaleSlider.h in Headers */,
 				861D2AE81B840991008C4CD0 /* ORKTimedWalkStep.h in Headers */,
 				86C40D241A8D7C5C00081FAC /* ORKFormStepViewController.h in Headers */,
+				1CA69D021CC0421100ED41F0 /* ORKLanguageHelper.h in Headers */,
 				86C40D6A1A8D7C5C00081FAC /* ORKResult.h in Headers */,
 				86C40DD61A8D7C5C00081FAC /* ORKUnitLabel.h in Headers */,
 				10FF9AD71B7A045E00ECB5B4 /* ORKSeparatorView.h in Headers */,
@@ -2478,6 +2501,7 @@
 				86C40E1E1A8D7C5C00081FAC /* ORKConsentSignature.h in Headers */,
 				24898B0D1B7186C000B0E7E7 /* ORKScaleRangeImageView.h in Headers */,
 				CBD34A5A1BB207FC00F204EA /* ORKSurveyAnswerCellForLocation.h in Headers */,
+				1CA69D041CC0421100ED41F0 /* ORKSingleton.h in Headers */,
 				86C40C5E1A8D7C5C00081FAC /* ORKWalkingTaskStepViewController.h in Headers */,
 				BCB6E66C1B7D537B000D5B34 /* ORKRangedPoint.h in Headers */,
 				86C40D2C1A8D7C5C00081FAC /* ORKHeadlineLabel.h in Headers */,
@@ -2860,6 +2884,7 @@
 				10FF9AD81B7A045E00ECB5B4 /* ORKSeparatorView.m in Sources */,
 				86C40D181A8D7C5C00081FAC /* ORKErrors.m in Sources */,
 				24850E1A1BCDA9C7006E91FB /* ORKLoginStepViewController.m in Sources */,
+				1CA69D031CC0421100ED41F0 /* ORKLanguageHelper.m in Sources */,
 				25ECC09C1AFBD8B300F3D63B /* ORKReactionTimeViewController.m in Sources */,
 				86C40DB01A8D7C5C00081FAC /* ORKSurveyAnswerCellForScale.m in Sources */,
 				86C40C281A8D7C5C00081FAC /* ORKCountdownStepViewController.m in Sources */,
@@ -2928,6 +2953,7 @@
 				86C40C981A8D7C5C00081FAC /* ORKDataLogger.m in Sources */,
 				BCB6E66D1B7D537B000D5B34 /* ORKRangedPoint.m in Sources */,
 				86C40D0C1A8D7C5C00081FAC /* ORKCustomStepView.m in Sources */,
+				1CA69D051CC0421100ED41F0 /* ORKSingleton.m in Sources */,
 				86C40C1C1A8D7C5C00081FAC /* ORKAudioStep.m in Sources */,
 				BCC1CD9B1B7ED64F00D86886 /* ORKYAxisView.m in Sources */,
 				86C40D581A8D7C5C00081FAC /* ORKOrderedTask.m in Sources */,
@@ -3129,6 +3155,7 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = ResearchKit/PrefixHeader.pch;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					"ORK_LOG_LEVEL_WARNING=1",
@@ -3163,6 +3190,7 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = ResearchKit/PrefixHeader.pch;
 				GCC_PREPROCESSOR_DEFINITIONS = "ORK_LOG_LEVEL_WARNING=1";
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;

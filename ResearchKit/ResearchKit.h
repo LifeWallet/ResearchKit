@@ -82,3 +82,6 @@
 #import <ResearchKit/ORKDiscreteGraphChartView.h>
 #import <ResearchKit/ORKPieChartView.h>
 
+//LifeWallet additions
+#import <ResearchKit/ORKSingleton.h>
+
