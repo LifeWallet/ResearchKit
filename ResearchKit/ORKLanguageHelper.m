@@ -19,14 +19,14 @@
     NSBundle *bundle = [NSBundle bundleForClass:[ORKStep class]];
     
     if([selectedLanguage isEqualToString:@"English"]){
-        NSLog(@"REACHED SET AS ENGLISH");
+        //NSLog(@"REACHED SET AS ENGLISH");
         path = [bundle pathForResource:@"en" ofType:@"lproj"];
     } else if ([selectedLanguage isEqualToString:@"Español"]){
-        NSLog(@"REACHED SET AS SPANISH");
+        //NSLog(@"REACHED SET AS SPANISH");
         path = [bundle pathForResource:@"es" ofType:@"lproj"];
     } else {
         /* default to english */
-        NSLog(@"REACHED FELL THROUGH TO ENGLISH");
+        //NSLog(@"REACHED FELL THROUGH TO ENGLISH");
         path = [bundle pathForResource:@"en" ofType:@"lproj"];
     }
     

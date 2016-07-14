@@ -40,7 +40,7 @@ ORK_EXTERN NSBundle *ORKDefaultLocaleBundle();
 #define ORKDefaultLocalizedValue(key) \
 [ORKDefaultLocaleBundle() localizedStringForKey:key value:@"" table:@"ResearchKit"]
 
-#define ORKLocalizedString(key, comment) \
+//#define ORKLocalizedString(key, comment) \
 [ORKBundle() localizedStringForKey:(key) value:ORKDefaultLocalizedValue(key) table:@"ResearchKit"]
 
 #define ORKLocalizedStringFromNumber(number) \
