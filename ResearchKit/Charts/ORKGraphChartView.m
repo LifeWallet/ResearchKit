@@ -408,7 +408,7 @@ inline static CALayer *graphVerticalReferenceLineLayerWithColor(UIColor *color, 
     // Scrubber Views
     _scrubberLine.frame = CGRectMake(CGRectGetMinX(_scrubberLine.frame),
                                      0,
-                                     1,
+                                     2,
                                      CGRectGetHeight(self.frame));
     
     [self updateYAxisPoints];
