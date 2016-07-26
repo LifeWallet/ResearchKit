@@ -362,6 +362,9 @@ ORK_CLASS_AVAILABLE
 */
 @property (nonatomic, strong, null_resettable) UIColor *scrubberLineColor;
 
+@property (nonatomic, strong) UIColor *scrubberFontColor;
+@property (nonatomic, strong) UIFont *scrubberFont;
+
 /**
  The string that is displayed if no data points are provided by the data source.
  

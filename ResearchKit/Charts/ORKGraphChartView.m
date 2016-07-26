@@ -49,11 +49,11 @@ static const CGFloat XAxisViewHeight = 30.0;
 static const CGFloat SnappingClosenessFactor = 0.3;
 static const CGSize ScrubberThumbSize = (CGSize){10.0, 10.0};
 static const CGFloat ScrubberFadeAnimationDuration = 0.2;
-static const CGFloat ScrubberLineToLabelPadding = 6.0;
-static const CGFloat ScrubberLabelCornerRadius = 4.0;
+//static const CGFloat ScrubberLineToLabelPadding = 6.0;
+//static const CGFloat ScrubberLabelCornerRadius = 4.0;
 static const CGFloat ScrubberLabelHorizontalPadding = 12.0;
 static const CGFloat ScrubberLabelVerticalPadding = 4.0;
-#define ScrubberLabelColor ([UIColor colorWithWhite:0.98 alpha:0.8])
+//#define ScrubberLabelColor ([UIColor colorWithWhite:0.98 alpha:0.8])
 
 @interface ORKGraphChartView () <UIGestureRecognizerDelegate>
 
@@ -176,6 +176,16 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
     [self updateAndLayoutVerticalReferenceLineLayers];
 }
 
+-(void)setScrubberFont:(UIFont *)scrubberFont{
+    _scrubberFont = scrubberFont;
+    [_scrubberLabel setFont:scrubberFont];
+}
+
+-(void)setScrubberFontColor:(UIColor *)scrubberFontColor{
+    _scrubberFontColor = scrubberFontColor;
+    [_scrubberLabel setTextColor:scrubberFontColor];
+}
+
 - (void)sharedInit {
     _numberOfXAxisPoints = -1;
     _showsHorizontalReferenceLines = NO;
@@ -276,12 +286,13 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
     
     _scrubberLabel = [UILabel new];
     _scrubberLabel.alpha = 0;
-    _scrubberLabel.layer.cornerRadius = ScrubberLabelCornerRadius;
-    _scrubberLabel.layer.borderColor = _scrubberLineColor.CGColor;
-    _scrubberLabel.layer.borderWidth = 1.0f;
-    _scrubberLabel.textColor = [UIColor darkGrayColor];
+//    _scrubberLabel.layer.cornerRadius = ScrubberLabelCornerRadius;
+//    _scrubberLabel.layer.borderColor = _scrubberLineColor.CGColor;
+//    _scrubberLabel.layer.borderWidth = 1.0f;
+    _scrubberLabel.textColor = _scrubberFontColor;
+    _scrubberLabel.font = _scrubberFont;
     _scrubberLabel.textAlignment = NSTextAlignmentCenter;
-    _scrubberLabel.backgroundColor = ScrubberLabelColor;
+//    _scrubberLabel.backgroundColor = ScrubberLabelColor;
     [self addSubview:_scrubberLabel];
     
     _scrubberThumbView = [[UIView alloc] initWithFrame:CGRectMake(0,
@@ -756,8 +767,8 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
                                                         options:(NSStringDrawingUsesFontLeading | NSStringDrawingUsesLineFragmentOrigin)
                                                      attributes:@{NSFontAttributeName: _scrubberLabel.font}
                                                         context:nil].size;
-    _scrubberLabel.frame = CGRectMake(CGRectGetMaxX(_scrubberLine.frame) + ScrubberLineToLabelPadding,
-                                      CGRectGetMinY(_scrubberLine.frame),
+    _scrubberLabel.frame = CGRectMake(CGRectGetMidX(_scrubberLine.frame) - (textSize.width + ScrubberLabelHorizontalPadding) / 2.0f,
+                                      -(textSize.height + ScrubberLabelVerticalPadding + 4.0f),
                                       textSize.width + ScrubberLabelHorizontalPadding,
                                       textSize.height + ScrubberLabelVerticalPadding);
     
