@@ -496,7 +496,6 @@ inline static UIImage *graphPointLayerImageWithColor(UIColor *color) {
                                     (CGRect){{0 + (pointLineWidth / 2), 0 + (pointLineWidth / 2)}, {pointSize - pointLineWidth, pointSize - pointLineWidth}}];
         CAShapeLayer *pointLayer = [CAShapeLayer new];
         pointLayer.path = circlePath.CGPath;
-#warning Fill color is hard-coded to white
         pointLayer.fillColor = [UIColor whiteColor].CGColor;
         pointLayer.strokeColor = color.CGColor;
         pointLayer.lineWidth = pointLineWidth;
