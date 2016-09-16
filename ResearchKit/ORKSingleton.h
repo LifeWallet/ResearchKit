@@ -9,7 +9,7 @@
 #import <Foundation/Foundation.h>
 
 @interface ORKSingleton : NSObject
-@property (nonatomic, strong) NSString   *currentLanguage;
+@property (nonatomic, strong) NSString   *currentLanguage; //This is expecting the full word (English, Español. etc...)
 
 + (ORKSingleton *)sharedSingleton;
 @end
