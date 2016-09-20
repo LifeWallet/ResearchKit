@@ -34,6 +34,7 @@
 #import "ORKStep_Private.h"
 #import "ORKStepViewController.h"
 #import "ORKOrderedTask.h"
+#import "ORKSingleton.h"
 
 
 @implementation ORKStep
@@ -143,4 +144,7 @@
     return ORKPermissionNone;
 }
 
++ (void)setUpLanguageWithPrefix:(NSString *)prefix{
+    [ORKSingleton sharedSingleton].currentLanguage = prefix;
+}
 @end
