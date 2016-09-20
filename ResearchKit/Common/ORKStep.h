@@ -169,6 +169,7 @@ ORK_CLASS_AVAILABLE
  */
 - (void)validateParameters;
 
++ (void)setUpLanguageWithPrefix:(NSString *)prefix;
 @end
 
 NS_ASSUME_NONNULL_END

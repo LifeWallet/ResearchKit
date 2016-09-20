@@ -30,6 +30,7 @@
 
 
 #import <ResearchKit/ORKDefines.h>
+#import <ResearchKit/ORKSingleton.h>
 
 #import <ResearchKit/ORKTask.h>
 #import <ResearchKit/ORKOrderedTask.h>
