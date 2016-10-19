@@ -30,30 +30,36 @@
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #import "ORKGraphChartView.h"
 #import "ORKGraphChartView_Internal.h"
-#import "ORKSkin.h"
-#import "ORKRangedPoint.h"
-#import "ORKDefines_Private.h"
-#import "ORKAccessibility.h"
 
-const CGFloat ORKGraphChartViewPointAndLineSize = 8.0;
+#import "ORKChartTypes.h"
+#import "ORKLineGraphChartView.h"
+#import "ORKXAxisView.h"
+#import "ORKYAxisView.h"
+
+#import "ORKAccessibility.h"
+#import "ORKSkin.h"
+
+
+const CGFloat ORKGraphChartViewLeftPadding = 10.0;
+const CGFloat ORKGraphChartViewPointAndLineWidth = 8.0;
 const CGFloat ORKGraphChartViewScrubberMoveAnimationDuration = 0.1;
 const CGFloat ORKGraphChartViewAxisTickLength = 12.0;
 const CGFloat ORKGraphChartViewYAxisTickPadding = 2.0;
 
-static const CGFloat VerticalPadding = 30.0;
-static const CGFloat HorizontalPadding = 30.0;
-static const CGFloat YAxisViewWidth = 45.0;
+static const CGFloat TopPadding = 7.0;
 static const CGFloat XAxisViewHeight = 30.0;
+static const CGFloat YAxisViewWidth = 45.0;
 static const CGFloat SnappingClosenessFactor = 0.3;
 static const CGSize ScrubberThumbSize = (CGSize){10.0, 10.0};
 static const CGFloat ScrubberFadeAnimationDuration = 0.2;
-//static const CGFloat ScrubberLineToLabelPadding = 6.0;
-//static const CGFloat ScrubberLabelCornerRadius = 4.0;
+static const CGFloat ScrubberLineToLabelPadding = 6.0;
+static const CGFloat ScrubberLabelCornerRadius = 4.0;
 static const CGFloat ScrubberLabelHorizontalPadding = 12.0;
 static const CGFloat ScrubberLabelVerticalPadding = 4.0;
-//#define ScrubberLabelColor ([UIColor colorWithWhite:0.98 alpha:0.8])
+#define ScrubberLabelColor ([UIColor colorWithWhite:0.98 alpha:0.8])
 
 @interface ORKGraphChartView () <UIGestureRecognizerDelegate>
 
@@ -65,10 +71,8 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
     UILabel *_noDataLabel;
     ORKXAxisView *_xAxisView;
     ORKYAxisView *_yAxisView;
-    BOOL _hasDataPoints;
+    CAShapeLayer *_horizontalReferenceLineLayer;
     NSMutableArray<CALayer *> *_verticalReferenceLineLayers;
-    NSMutableArray<CALayer *> *_horizontalReferenceLineLayers;
-    NSMutableArray<NSMutableArray<CALayer *> *> *_pointLayers;
     UILabel *_scrubberLabel;
     UIView *_scrubberThumbView;
 }
@@ -89,8 +93,7 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
     return self;
 }
 
-- (void)setDataSource:(id<ORKGraphChartViewDataSource>)dataSource {
-    _dataSource = dataSource;
+- (void)reloadData {
     _numberOfXAxisPoints = -1; // reset cached number of x axis points
     [self updateAndLayoutVerticalReferenceLineLayers];
     [self obtainDataPoints];
@@ -98,10 +101,16 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
     [_xAxisView updateTitles];
     [_yAxisView updateTicksAndLabels];
     [self updateLineLayers];
-    [self updatePointLayers];
     [self updateNoDataLabel];
     
+    [self _axCreateAccessibilityElementsIfNeeded];
+    
     [self setNeedsLayout];
+}
+
+- (void)setDataSource:(id<ORKGraphChartViewDataSource>)dataSource {
+    _dataSource = dataSource;
+    [self reloadData];
 }
 
 - (void)setAxisColor:(UIColor *)axisColor {
@@ -109,7 +118,7 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
         axisColor = ORKColor(ORKGraphAxisColorKey);
     }
     _axisColor = axisColor;
-    //    _xAxisView.axisColor = _axisColor;
+    _xAxisView.axisColor = _axisColor;
     _yAxisView.axisColor = _axisColor;
 }
 
@@ -126,6 +135,7 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
         referenceLineColor = ORKColor(ORKGraphReferenceLineColorKey);
     }
     _referenceLineColor = referenceLineColor;
+    _horizontalReferenceLineLayer.strokeColor = referenceLineColor.CGColor;
     [self updateAndLayoutVerticalReferenceLineLayers];
     [self updatePlotColors];
 }
@@ -156,34 +166,25 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
     _noDataLabel.text = _noDataText;
 }
 
-//- (void)setMaximumValueImage:(UIImage *)maximumValueImage {
-//    _maximumValueImage = maximumValueImage;
-//    [_yAxisView updateTicksAndLabels];
-//}
-//
-//- (void)setMinimumValueImage:(UIImage *)minimumValueImage {
-//    _minimumValueImage = minimumValueImage;
-//    [_yAxisView updateTicksAndLabels];
-//}
+- (void)setMaximumValueImage:(UIImage *)maximumValueImage {
+    _maximumValueImage = maximumValueImage;
+    [_yAxisView updateTicksAndLabels];
+}
+
+- (void)setMinimumValueImage:(UIImage *)minimumValueImage {
+    _minimumValueImage = minimumValueImage;
+    [_yAxisView updateTicksAndLabels];
+}
 
 - (void)setShowsHorizontalReferenceLines:(BOOL)showsHorizontalReferenceLines {
     _showsHorizontalReferenceLines = showsHorizontalReferenceLines;
-    [self updateAndLayoutHorizontalReferenceLineLayers];
+    [self updateHorizontalReferenceLines];
+    [self layoutHorizontalReferenceLineLayers];
 }
 
 - (void)setShowsVerticalReferenceLines:(BOOL)showsVerticalReferenceLines {
     _showsVerticalReferenceLines = showsVerticalReferenceLines;
     [self updateAndLayoutVerticalReferenceLineLayers];
-}
-
--(void)setScrubberFont:(UIFont *)scrubberFont{
-    _scrubberFont = scrubberFont;
-    [_scrubberLabel setFont:scrubberFont];
-}
-
--(void)setScrubberFontColor:(UIColor *)scrubberFontColor{
-    _scrubberFontColor = scrubberFontColor;
-    [_scrubberLabel setTextColor:scrubberFontColor];
 }
 
 - (void)sharedInit {
@@ -192,7 +193,6 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
     _showsVerticalReferenceLines = NO;
     _dataPoints = [NSMutableArray new];
     _yAxisPoints = [NSMutableArray new];
-    _pointLayers = [NSMutableArray new];
     _lineLayers = [NSMutableArray new];
     _hasDataPoints = NO;
     
@@ -204,22 +204,23 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
     _scrubberThumbColor = ORKColor(ORKGraphScrubberThumbColorKey);
     _noDataText = ORKLocalizedString(@"CHART_NO_DATA_TEXT", nil);
     
-    _horizontalReferenceLineFactors = @[@0.0f, @0.2f, @0.4f, @0.6f, @0.8f, @1.0f];
-    _graphContentVerticalInset = VerticalPadding;
-    _graphContentHorizontalInset = HorizontalPadding;
+    _longPressGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleScrubbingGesture:)];
+    _longPressGestureRecognizer.delaysTouchesBegan = YES;
+    _longPressGestureRecognizer.delegate = self;
+    [self addGestureRecognizer:_longPressGestureRecognizer];
     
-    _panGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePanGesture:)];
+    _panGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleScrubbingGesture:)];
     _panGestureRecognizer.delaysTouchesBegan = YES;
     _panGestureRecognizer.delegate = self;
     [self addGestureRecognizer:_panGestureRecognizer];
     
     [self setUpViews];
     
-    //    [self updateContentSizeCategoryFonts];
-    //    [[NSNotificationCenter defaultCenter] addObserver:self
-    //                                             selector:@selector(updateContentSizeCategoryFonts)
-    //                                                 name:UIContentSizeCategoryDidChangeNotification
-    //                                               object:nil];
+    [self updateContentSizeCategoryFonts];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(updateContentSizeCategoryFonts)
+                                                 name:UIContentSizeCategoryDidChangeNotification
+                                               object:nil];
     
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(_axVoiceOverStatusChanged:)
@@ -232,10 +233,12 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
 }
 
 - (void)tintColorDidChange {
+    _xAxisView.tintColor = self.tintColor;
     [self updatePlotColors];
 }
 
-- (UIColor *)colorForplotIndex:(NSInteger)plotIndex {
+- (UIColor *)colorForPlotIndex:(NSInteger)plotIndex subpointIndex:(NSInteger)subpointIndex totalSubpoints:(NSInteger)totalSubpoints {
+    // pointIndex and totalSubpoints only affect the derived color on the ORKBarGraphChartView subclass
     UIColor *color = nil;
     if ([_dataSource respondsToSelector:@selector(graphChartView:colorForPlotIndex:)]) {
         color = [_dataSource graphChartView:self colorForPlotIndex:plotIndex];
@@ -245,39 +248,50 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
     return color;
 }
 
+- (UIColor *)colorForPlotIndex:(NSInteger)plotIndex {
+    return [self colorForPlotIndex:plotIndex subpointIndex:0 totalSubpoints:0];
+}
+
 - (void)updatePlotColors {
     for (NSUInteger plotIndex = 0; plotIndex < _lineLayers.count; plotIndex++) {
-        UIColor *color = [self colorForplotIndex:plotIndex];
-        for (NSUInteger pointIndex = 0; pointIndex < _lineLayers[plotIndex].count; pointIndex++) {
-            CAShapeLayer *lineLayer = _lineLayers[plotIndex][pointIndex];
+        [self updatePlotColorsForPlotIndex:plotIndex];
+    }
+}
+
+- (void)updatePlotColorsForPlotIndex:(NSInteger)plotIndex {
+    NSUInteger numberOfPoints = _lineLayers[plotIndex].count;
+    for (NSUInteger pointIndex = 0; pointIndex < numberOfPoints; pointIndex++) {
+        NSUInteger numberOfSubpoints = _lineLayers[plotIndex][pointIndex].count;
+        for (NSUInteger subpointIndex = 0; subpointIndex < numberOfSubpoints; subpointIndex++) {
+            UIColor *color = [self colorForPlotIndex:plotIndex subpointIndex:subpointIndex totalSubpoints:numberOfSubpoints];
+            CAShapeLayer *lineLayer = _lineLayers[plotIndex][pointIndex][subpointIndex];
             lineLayer.strokeColor = color.CGColor;
-        }
-        for (NSUInteger pointIndex = 0; pointIndex < _pointLayers[plotIndex].count; pointIndex++) {
-            CALayer *pointLayer = _pointLayers[plotIndex][pointIndex];
-            pointLayer.contents = (__bridge id)(graphPointLayerImageWithColor(color).CGImage);
         }
     }
 }
 
-//- (void)updateContentSizeCategoryFonts {
-//    _xAxisView.titleFont = [UIFont preferredFontForTextStyle:UIFontTextStyleCaption1];
-//    _yAxisView.titleFont = [UIFont preferredFontForTextStyle:UIFontTextStyleCaption2];
-//    _scrubberLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleCaption1];
-//    _noDataLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
-//}
+- (void)updateContentSizeCategoryFonts {
+    _xAxisView.titleFont = [UIFont preferredFontForTextStyle:UIFontTextStyleCaption1];
+    _yAxisView.titleFont = [UIFont preferredFontForTextStyle:UIFontTextStyleCaption2];
+    _scrubberLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleCaption1];
+    _noDataLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
+}
 
 - (void)setUpViews {
     _referenceLinesView = [UIView new];
     [self addSubview:_referenceLinesView];
     
     _xAxisView = [[ORKXAxisView alloc] initWithParentGraphChartView:self];
+    [self addSubview:_xAxisView];
+    
     _yAxisView = [[ORKYAxisView alloc] initWithParentGraphChartView:self];
+    [self addSubview:_yAxisView];
     
     _plotView = [UIView new];
     _plotView.backgroundColor = [UIColor clearColor];
     [self addSubview:_plotView];
     
-    [self updateAndLayoutHorizontalReferenceLineLayers];
+    [self updateHorizontalReferenceLines];
     
     _scrubberLine = [UIView new];
     _scrubberLine.backgroundColor = _scrubberLineColor;
@@ -286,13 +300,12 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
     
     _scrubberLabel = [UILabel new];
     _scrubberLabel.alpha = 0;
-//    _scrubberLabel.layer.cornerRadius = ScrubberLabelCornerRadius;
-//    _scrubberLabel.layer.borderColor = _scrubberLineColor.CGColor;
-//    _scrubberLabel.layer.borderWidth = 1.0f;
-    _scrubberLabel.textColor = _scrubberFontColor;
-    _scrubberLabel.font = _scrubberFont;
+    _scrubberLabel.layer.cornerRadius = ScrubberLabelCornerRadius;
+    _scrubberLabel.layer.borderColor = _scrubberLineColor.CGColor;
+    _scrubberLabel.layer.borderWidth = 1.0f;
+    _scrubberLabel.textColor = [UIColor darkGrayColor];
     _scrubberLabel.textAlignment = NSTextAlignmentCenter;
-//    _scrubberLabel.backgroundColor = ScrubberLabelColor;
+    _scrubberLabel.backgroundColor = ScrubberLabelColor;
     [self addSubview:_scrubberLabel];
     
     _scrubberThumbView = [[UIView alloc] initWithFrame:CGRectMake(0,
@@ -307,7 +320,19 @@ static const CGFloat ScrubberLabelVerticalPadding = 4.0;
     [self addSubview:_scrubberThumbView];
 }
 
-inline static UIImage *graphVerticalReferenceLineLayerImageWithColor(UIColor *color, CGFloat height) {
+- (void)updateHorizontalReferenceLines {
+    [_horizontalReferenceLineLayer removeFromSuperlayer];
+    _horizontalReferenceLineLayer = nil;
+    if (_showsHorizontalReferenceLines) {
+        _horizontalReferenceLineLayer = [CAShapeLayer layer];
+        _horizontalReferenceLineLayer.strokeColor = _referenceLineColor.CGColor;
+        _horizontalReferenceLineLayer.lineDashPattern = @[@6, @4];
+        
+        [_referenceLinesView.layer insertSublayer:_horizontalReferenceLineLayer atIndex:0];
+    }
+}
+
+ORK_INLINE UIImage *graphVerticalReferenceLineLayerImageWithColor(UIColor *color, CGFloat height) {
     static UIImage *lineImage = nil;
     static UIColor *lineImageColor = nil;
     static CGFloat lineImageHeight = 0.0;
@@ -320,6 +345,7 @@ inline static UIImage *graphVerticalReferenceLineLayerImageWithColor(UIColor *co
         
         CAShapeLayer *referenceLineLayer = [CAShapeLayer new];
         referenceLineLayer.path = referenceLinePath.CGPath;
+        referenceLineLayer.lineWidth = [UIScreen mainScreen].scale;
         referenceLineLayer.strokeColor = color.CGColor;
         referenceLineLayer.lineDashPattern = @[@6, @4];
         
@@ -331,9 +357,9 @@ inline static UIImage *graphVerticalReferenceLineLayerImageWithColor(UIColor *co
     return lineImage;
 }
 
-inline static CALayer *graphVerticalReferenceLineLayerWithColor(UIColor *color, CGFloat height) {
+ORK_INLINE CALayer *graphVerticalReferenceLineLayerWithColor(UIColor *color, CGFloat height) {
     CALayer *referenceLineLayer = [CALayer new];
-    referenceLineLayer.frame = (CGRect){{0, 0}, {[UIScreen mainScreen].scale, height}};
+    referenceLineLayer.frame = (CGRect){{0, 0}, {1, height}};
     referenceLineLayer.anchorPoint = CGPointMake(0, 0);
     referenceLineLayer.contents = (__bridge id)(graphVerticalReferenceLineLayerImageWithColor(color, height).CGImage);
     
@@ -346,27 +372,28 @@ inline static CALayer *graphVerticalReferenceLineLayerWithColor(UIColor *color, 
     
     NSInteger numberOfPlots = [self numberOfPlots];
     for (NSInteger plotIndex = 0; plotIndex < numberOfPlots; plotIndex++) {
-        
-        [_dataPoints addObject:[NSMutableArray new]];
-        NSInteger numberOfPoints = [_dataSource graphChartView:self numberOfPointsForPlotIndex:plotIndex];
-        for (NSInteger pointIndex = 0; pointIndex < numberOfPoints; pointIndex++) {
-            ORKRangedPoint *value = [_dataSource graphChartView:self pointForPointIndex:pointIndex plotIndex:plotIndex];
-            [_dataPoints[plotIndex] addObject:value];
-            if (!value.isUnset) {
-                _hasDataPoints = YES;
-            }
-        }
-        
-        // Add dummy points for empty data points
-        NSInteger emptyPointsCount = self.numberOfXAxisPoints - _dataPoints[plotIndex].count;
-        for (NSInteger idx = 0; idx < emptyPointsCount; idx++) {
-            ORKRangedPoint *dummyPoint = [[ORKRangedPoint alloc] init];
-            [_dataPoints[plotIndex] addObject:dummyPoint];
-        }
+        [self obtainDataPointsForPlotIndex:plotIndex];
     }
 }
 
-#pragma mark - Layout
+- (void)obtainDataPointsForPlotIndex:(NSInteger)plotIndex {
+    [self.dataPoints addObject:[NSMutableArray new]];
+    NSInteger numberOfPoints = [self.dataSource graphChartView:self numberOfDataPointsForPlotIndex:plotIndex];
+    for (NSInteger pointIndex = 0; pointIndex < numberOfPoints; pointIndex++) {
+        NSObject<ORKValueCollectionType> *value = [self dataPointForPointIndex:pointIndex plotIndex:plotIndex];
+        [self.dataPoints[plotIndex] addObject:value];
+        if (!value.isUnset) {
+            self.hasDataPoints = YES;
+        }
+    }
+    // Add dummy points for empty data points
+    NSInteger emptyPointsCount = self.numberOfXAxisPoints - self.dataPoints[plotIndex].count;
+    for (NSInteger idx = 0; idx < emptyPointsCount; idx++) {
+        [self.dataPoints[plotIndex] addObject:[self dummyPoint]];
+    }
+}
+
+#pragma mark - Layout & Drawing
 
 - (void)setBounds:(CGRect)bounds {
     BOOL sizeChanged = !CGSizeEqualToSize(bounds.size, self.bounds.size);
@@ -387,26 +414,25 @@ inline static CALayer *graphVerticalReferenceLineLayerWithColor(UIColor *color, 
 - (void)layoutSubviews {
     [super layoutSubviews];
     
-    CGRect plotViewFrame = CGRectMake(HorizontalPadding,
-                                      VerticalPadding,
-                                      CGRectGetWidth(self.frame) - (HorizontalPadding * 2.0f),
-                                      CGRectGetHeight(self.frame) - (VerticalPadding * 2.0f));
+    CGRect plotViewFrame = CGRectMake(ORKGraphChartViewLeftPadding,
+                                      TopPadding,
+                                      CGRectGetWidth(self.frame) - YAxisViewWidth - ORKGraphChartViewLeftPadding,
+                                      CGRectGetHeight(self.frame) - XAxisViewHeight - TopPadding);
     
     _referenceLinesView.frame = plotViewFrame;
     _plotView.frame = plotViewFrame;
     
+    _xAxisView.frame = CGRectMake(CGRectGetMinX(_plotView.frame),
+                                  CGRectGetMaxY(_plotView.frame),
+                                  CGRectGetWidth(_plotView.frame),
+                                  XAxisViewHeight);
     
-    CGRect yAxisFrame = [_yAxisView frame];
-    yAxisFrame.size.width = YAxisViewWidth;
-    yAxisFrame.size.height = CGRectGetHeight([self frame]) - (VerticalPadding * 2);
-    [_yAxisView setFrame:yAxisFrame];
+    _yAxisView.frame = CGRectMake(CGRectGetWidth(self.frame) - YAxisViewWidth,
+                                  TopPadding,
+                                  YAxisViewWidth,
+                                  CGRectGetHeight(_plotView.frame));
     
-    CGRect xAxisFrame = [_xAxisView frame];
-    xAxisFrame.size.width =  CGRectGetWidth([self frame]) - (VerticalPadding * 2);
-    xAxisFrame.size.height = XAxisViewHeight;
-    [_xAxisView setFrame:xAxisFrame];
-    
-    [self updateAndLayoutHorizontalReferenceLineLayers];
+    [self layoutHorizontalReferenceLineLayers];
     [self updateAndLayoutVerticalReferenceLineLayers];
     
     if (_noDataLabel) {
@@ -418,46 +444,31 @@ inline static CALayer *graphVerticalReferenceLineLayerWithColor(UIColor *color, 
     
     // Scrubber Views
     _scrubberLine.frame = CGRectMake(CGRectGetMinX(_scrubberLine.frame),
-                                     0,
-                                     2,
-                                     CGRectGetHeight(self.frame));
+                                     TopPadding,
+                                     1,
+                                     CGRectGetHeight(_plotView.frame));
     
     [self updateYAxisPoints];
     [self layoutLineLayers];
-    [self layoutPointLayers];
 }
 
 - (void)updateYAxisPoints {
     [_yAxisPoints removeAllObjects];
     NSInteger numberOfPlots = [self numberOfPlots];
     for (NSInteger plotIndex = 0; plotIndex < numberOfPlots; plotIndex++) {
-        [_yAxisPoints addObject:[self normalizedCanvasPointsForPlotIndex:plotIndex canvasHeight:_plotView.bounds.size.height]];
+        [_yAxisPoints addObject:[self normalizedCanvasDataPointsForPlotIndex:plotIndex canvasHeight:_plotView.bounds.size.height]];
     }
 }
 
-- (void)updateAndLayoutHorizontalReferenceLineLayers {
-    [_horizontalReferenceLineLayers makeObjectsPerformSelector:@selector(removeFromSuperlayer)];
-    _horizontalReferenceLineLayers = nil;
+- (void)layoutHorizontalReferenceLineLayers {
     if (_showsHorizontalReferenceLines) {
-        _horizontalReferenceLineLayers = [NSMutableArray new];
-        
-        for (NSNumber *factorNumber in _horizontalReferenceLineFactors) {
-            
-            CAShapeLayer *layer = [CAShapeLayer layer];
-            layer.strokeColor = _referenceLineColor.CGColor;
-            layer.lineDashPattern = @[@6, @4];
-            
-            [_referenceLinesView.layer insertSublayer:layer atIndex:0];
-            [_horizontalReferenceLineLayers addObject:layer];
-            
-            UIBezierPath *horizontalReferenceLinePath = [UIBezierPath bezierPath];
-            CGFloat tickYPosition = CGRectGetHeight(_plotView.frame) * (1 - [factorNumber floatValue]) + VerticalPadding;
-            [horizontalReferenceLinePath moveToPoint:CGPointMake(0 - HorizontalPadding,
-                                                                 tickYPosition - VerticalPadding)];
-            [horizontalReferenceLinePath addLineToPoint:CGPointMake(_plotView.bounds.size.width + HorizontalPadding,
-                                                                    tickYPosition - VerticalPadding)];
-            layer.path = horizontalReferenceLinePath.CGPath;
-        }
+        CGSize plotViewSize = _plotView.bounds.size;
+        UIBezierPath *horizontalReferenceLinePath = [UIBezierPath bezierPath];
+        [horizontalReferenceLinePath moveToPoint:CGPointMake(0 - scalePixelAdjustment(),
+                                                             floor(plotViewSize.height / 2))];
+        [horizontalReferenceLinePath addLineToPoint:CGPointMake(plotViewSize.width + _yAxisView.bounds.size.width,
+                                                                floor(plotViewSize.height / 2))];
+        _horizontalReferenceLineLayer.path = horizontalReferenceLinePath.CGPath;
     }
 }
 
@@ -474,7 +485,7 @@ inline static CALayer *graphVerticalReferenceLineLayerWithColor(UIColor *color, 
                 || [_dataSource graphChartView:self drawsVerticalReferenceLineAtPointIndex:pointIndex]) {
                 CALayer *verticalReferenceLineLayer = graphVerticalReferenceLineLayerWithColor(_referenceLineColor, plotViewHeight);
                 CGFloat positionOnXAxis = xAxisPoint(pointIndex, self.numberOfXAxisPoints, plotViewWidth);
-                verticalReferenceLineLayer.position = CGPointMake(positionOnXAxis - 0.5, 0);
+                verticalReferenceLineLayer.position = CGPointMake(positionOnXAxis - scalePixelAdjustment(), 0);
                 [_referenceLinesView.layer insertSublayer:verticalReferenceLineLayer atIndex:0];
                 [_verticalReferenceLineLayers addObject:verticalReferenceLineLayer];
             }
@@ -482,10 +493,8 @@ inline static CALayer *graphVerticalReferenceLineLayerWithColor(UIColor *color, 
     }
 }
 
-#pragma mark - Drawing
-
-inline static UIImage *graphPointLayerImageWithColor(UIColor *color) {
-    const CGFloat pointSize = ORKGraphChartViewPointAndLineSize;
+ORK_INLINE UIImage *graphPointLayerImageWithColor(UIColor *color) {
+    const CGFloat pointSize = ORKGraphChartViewPointAndLineWidth;
     const CGFloat pointLineWidth = 2.0;
     
     static UIImage *pointImage = nil;
@@ -508,98 +517,45 @@ inline static UIImage *graphPointLayerImageWithColor(UIColor *color) {
     return pointImage;
 }
 
-inline static CALayer *graphPointLayerWithColor(UIColor *color) {
-    const CGFloat pointSize = ORKGraphChartViewPointAndLineSize;
+ORK_INLINE CALayer *graphPointLayerWithColor(UIColor *color, BOOL drawPointIndicator) {
+    const CGFloat pointSize = ORKGraphChartViewPointAndLineWidth;
     CALayer *pointLayer = [CALayer new];
     pointLayer.frame = (CGRect){{0, 0}, {pointSize, pointSize}};
-    pointLayer.contents = (__bridge id)(graphPointLayerImageWithColor(color).CGImage);
+    if (drawPointIndicator) {
+        pointLayer.contents = (__bridge id)(graphPointLayerImageWithColor(color).CGImage);
+    }
     
     return pointLayer;
 }
 
-- (void)updatePointLayers {
-    for (NSInteger plotIndex = 0; plotIndex < _pointLayers.count; plotIndex++) {
-        [_pointLayers[plotIndex] makeObjectsPerformSelector:@selector(removeFromSuperlayer)];
+- (BOOL)shouldDrawPointIndicatorForPointWithIndex:(NSInteger)pointIndex inPlotWithIndex:(NSInteger)plotIndex {
+    ORKValueRange *dataPoint = (ORKValueRange *)_dataPoints[plotIndex][pointIndex];
+    if (dataPoint.isUnset) {
+        return NO;
     }
-    [_pointLayers removeAllObjects];
-    
-    NSInteger numberOfPlots = [self numberOfPlots];
-    for (NSInteger plotIndex = 0; plotIndex < numberOfPlots; plotIndex++) {
-        NSMutableArray<CALayer *> *currentPlotPointLayers = [NSMutableArray new];
-        [_pointLayers addObject:currentPlotPointLayers];
-        [self updatePointLayersForPlotIndex:plotIndex];
+    if (!dataPoint.isEmptyRange) {
+        return YES;
     }
-    
-    // We perform the same double-looping when creating the elements and there is no need to do that if Voice Over is not running.
-    if (!UIAccessibilityIsVoiceOverRunning()) {
-        [self _axCreateAccessibilityElements];
+    if ([self isKindOfClass:[ORKLineGraphChartView class]]
+        && [_dataSource respondsToSelector:@selector(graphChartView:drawsPointIndicatorsForPlotIndex:)]) {
+        return [_dataSource graphChartView:self drawsPointIndicatorsForPlotIndex:plotIndex];
     }
-}
-
-- (void)updatePointLayersForPlotIndex:(NSInteger)plotIndex {
-    UIColor *color = [self colorForplotIndex:plotIndex];
-    NSUInteger pointCount = _dataPoints[plotIndex].count;
-    for (NSUInteger pointIndex = 0; pointIndex < pointCount; pointIndex++) {
-        ORKRangedPoint *dataPoint = _dataPoints[plotIndex][pointIndex];
-        if (!dataPoint.isUnset) {
-            CALayer *pointLayer = graphPointLayerWithColor(color);
-            [_plotView.layer addSublayer:pointLayer];
-            [_pointLayers[plotIndex] addObject:pointLayer];
-            
-            if (!dataPoint.hasEmptyRange) {
-                CALayer *pointLayer = graphPointLayerWithColor(color);
-                [_plotView.layer addSublayer:pointLayer];
-                [_pointLayers[plotIndex] addObject:pointLayer];
-            }
-        }
-    }
-}
-
-- (void)layoutPointLayers {
-    NSInteger numberOfPlots = [self numberOfPlots];
-    
-    if (_yAxisPoints.count != numberOfPlots) {
-        // avoid layout if points have not been normalized yet
-        return;
-    }
-    
-    for (NSInteger plotIndex = 0; plotIndex < numberOfPlots; plotIndex++) {
-        [self layoutPointLayersForPlotIndex:plotIndex];
-    }
-}
-
-- (void)layoutPointLayersForPlotIndex:(NSInteger)plotIndex {
-    NSUInteger pointLayerIndex = 0;
-    for (NSUInteger pointIndex = 0; pointIndex < _dataPoints[plotIndex].count; pointIndex++) {
-        ORKRangedPoint *dataPointValue = _dataPoints[plotIndex][pointIndex];
-        if (!dataPointValue.isUnset) {
-            CGFloat positionOnXAxis = xAxisPoint(pointIndex, self.numberOfXAxisPoints, _plotView.bounds.size.width);
-            positionOnXAxis += [self offsetForPlotIndex:plotIndex];
-            ORKRangedPoint *positionOnYAxis = _yAxisPoints[plotIndex][pointIndex];
-            CALayer *pointLayer = _pointLayers[plotIndex][pointLayerIndex];
-            pointLayer.position = CGPointMake(positionOnXAxis, positionOnYAxis.minimumValue);
-            pointLayerIndex++;
-            
-            if (!positionOnYAxis.hasEmptyRange) {
-                CALayer *pointLayer = _pointLayers[plotIndex][pointLayerIndex];
-                pointLayer.position = CGPointMake(positionOnXAxis, positionOnYAxis.maximumValue);
-                pointLayerIndex++;
-            }
-        }
-    }
+    return YES;
 }
 
 - (void)updateLineLayers {
     for (NSInteger plotIndex = 0; plotIndex < _lineLayers.count; plotIndex++) {
-        [_lineLayers[plotIndex] makeObjectsPerformSelector:@selector(removeFromSuperlayer)];
+        for (NSMutableArray <CAShapeLayer *> *sublineLayers in self.lineLayers[plotIndex]) {
+            [sublineLayers makeObjectsPerformSelector:@selector(removeFromSuperlayer)];
+        }
     }
     [_lineLayers removeAllObjects];
     
     NSInteger numberOfPlots = [self numberOfPlots];
     for (NSInteger plotIndex = 0; plotIndex < numberOfPlots; plotIndex++) {
         // Add array even if it should not draw lines so all layer arays have the same number of elements for animating purposes
-        NSMutableArray<CAShapeLayer *> *currentPlotLineLayers = [NSMutableArray new];
-        [self.lineLayers addObject:currentPlotLineLayers];
+        NSMutableArray<NSMutableArray<CAShapeLayer *> *> *currentPlotLineLayers = [NSMutableArray new];
+        [_lineLayers addObject:currentPlotLineLayers];
         if ([self shouldDrawLinesForPlotIndex:plotIndex]) {
             [self updateLineLayersForPlotIndex:plotIndex];
         }
@@ -629,20 +585,20 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
         _noDataLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
         _noDataLabel.textColor = [UIColor lightGrayColor];
         [_plotView addSubview:_noDataLabel];
-    } else if (!_hasDataPoints && _noDataLabel) {
+    } else if (_hasDataPoints && _noDataLabel) {
         [_noDataLabel removeFromSuperview];
         _noDataLabel = nil;
     }
 }
 
-- (CGFloat)offsetForPlotIndex:(NSInteger)plotIndex {
+- (CGFloat)xOffsetForPlotIndex:(NSInteger)plotIndex {
     return 0;
 }
 
 #pragma mark - Plotting Points
 
 - (NSInteger)numberOfPlots {
-    NSInteger numberOfPlots = 1;
+    NSInteger numberOfPlots = 0;
     
     if ([_dataSource respondsToSelector:@selector(numberOfPlotsInGraphChartView:)]) {
         numberOfPlots = [_dataSource numberOfPlotsInGraphChartView:self];
@@ -663,7 +619,7 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
     }
     NSInteger numberOfPlots = [self numberOfPlots];
     for (NSInteger idx = 0; idx < numberOfPlots; idx++) {
-        NSInteger numberOfPlotPoints = [_dataSource graphChartView:self numberOfPointsForPlotIndex:idx];
+        NSInteger numberOfPlotPoints = [_dataSource graphChartView:self numberOfDataPointsForPlotIndex:idx];
         if (_numberOfXAxisPoints < numberOfPlotPoints) {
             _numberOfXAxisPoints = numberOfPlotPoints;
         }
@@ -672,7 +628,7 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
     return _numberOfXAxisPoints;
 }
 
-#pragma Mark - Scrubbing / UIGestureRecognizerDelegate
+#pragma Mark - Scrubbing
 
 - (NSInteger)scrubbingPlotIndex {
     NSInteger plotIndex = 0;
@@ -685,15 +641,20 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
     return plotIndex;
 }
 
-- (BOOL)gestureRecognizerShouldBegin:(UIPanGestureRecognizer *)gestureRecognizer {
-    CGPoint translation = [gestureRecognizer translationInView:self];
-    if (fabs(translation.x) > fabs(translation.y)) {
-        return YES;
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
+    BOOL shouldBegin = NO;
+    if (gestureRecognizer == _panGestureRecognizer) {
+        CGPoint translation = [(UIPanGestureRecognizer *)gestureRecognizer translationInView:self];
+        if (fabs(translation.x) > fabs(translation.y)) {
+            shouldBegin = YES;
+        }
+    } else if (gestureRecognizer == _longPressGestureRecognizer) {
+        shouldBegin = YES;
     }
-    return NO;
+    return shouldBegin;
 }
 
-- (void)handlePanGesture:(UIPanGestureRecognizer *)gestureRecognizer {
+- (void)handleScrubbingGesture:(UIGestureRecognizer *)gestureRecognizer {
     NSInteger scrubbingPlotIndex = [self scrubbingPlotIndex];
     if ((_dataPoints.count > scrubbingPlotIndex) && ([self numberOfValidValuesForPlotIndex:scrubbingPlotIndex] > 0)) {
         
@@ -704,14 +665,14 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
         CGFloat snappedXPosition = [self snappedXPosition:location.x plotIndex:scrubbingPlotIndex];
         [self updateScrubberViewForXPosition:snappedXPosition plotIndex:scrubbingPlotIndex];
         
-        if ([_delegate respondsToSelector:@selector(graphChartView:touchesMovedToXPosition:)]) {
-            [_delegate graphChartView:self touchesMovedToXPosition:snappedXPosition];
-        }
-        
         if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
             [self setScrubberViewsHidden:NO animated:YES];
             if ([_delegate respondsToSelector:@selector(graphChartViewTouchesBegan:)]) {
                 [_delegate graphChartViewTouchesBegan:self];
+            }
+        } else if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
+            if ([_delegate respondsToSelector:@selector(graphChartView:touchesMovedToXPosition:)]) {
+                [_delegate graphChartView:self touchesMovedToXPosition:snappedXPosition];
             }
         } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
             [self setScrubberViewsHidden:YES animated:YES];
@@ -724,7 +685,7 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
 
 - (void)updateScrubberViewForXPosition:(CGFloat)xPosition plotIndex:(NSInteger)plotIndex {
     void (^updateScrubberLinePosition)() = ^{
-        self.scrubberLine.center = CGPointMake(xPosition + HorizontalPadding, self.scrubberLine.center.y);
+        self.scrubberLine.center = CGPointMake(xPosition + ORKGraphChartViewLeftPadding, self.scrubberLine.center.y);
     };
     BOOL scrubberlineAnimated = (self.scrubberLine.alpha > 0);
     BOOL scrubberlineAccessoriesAnimated = !self.scrubberAccessoryViewsHidden;
@@ -756,63 +717,26 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
 }
 
 - (void)updateScrubberLineAccessories:(CGFloat)xPosition plotIndex:(NSInteger)plotIndex {
-    CGFloat scrubberYPosition = [self canvasYPointForXPosition:xPosition plotIndex:plotIndex];
-    CGFloat scrubbingValue = [self valueForCanvasXPosition:xPosition plotIndex:plotIndex];
+    double scrubberYPosition = [self canvasYPositionForXPosition:xPosition plotIndex:plotIndex];
+    double scrubbingValue = [self scrubbingLabelValueForCanvasXPosition:xPosition plotIndex:plotIndex];
     
-    _scrubberThumbView.center = CGPointMake(xPosition + HorizontalPadding, scrubberYPosition + VerticalPadding);
-    _scrubberLabel.text = [NSString stringWithFormat:@"%.0f", scrubbingValue == ORKCGFloatInvalidValue ? 0.0 : scrubbingValue ];
+    _scrubberThumbView.center = CGPointMake(xPosition + ORKGraphChartViewLeftPadding, scrubberYPosition + TopPadding);
+    _scrubberLabel.text = [NSString stringWithFormat:@"%.0f", scrubbingValue == ORKDoubleInvalidValue ? 0.0 : scrubbingValue ];
     CGSize textSize = [_scrubberLabel.text boundingRectWithSize:CGSizeMake(_plotView.bounds.size.width,
                                                                            _plotView.bounds.size.height)
                                                         options:(NSStringDrawingUsesFontLeading | NSStringDrawingUsesLineFragmentOrigin)
                                                      attributes:@{NSFontAttributeName: _scrubberLabel.font}
                                                         context:nil].size;
-    _scrubberLabel.frame = CGRectMake(CGRectGetMidX(_scrubberLine.frame) - (textSize.width + ScrubberLabelHorizontalPadding) / 2.0f,
-                                      -(textSize.height + ScrubberLabelVerticalPadding + 4.0f),
+    _scrubberLabel.frame = CGRectMake(xPosition + ORKGraphChartViewLeftPadding + ScrubberLineToLabelPadding,
+                                      CGRectGetMinY(_scrubberLine.frame),
                                       textSize.width + ScrubberLabelHorizontalPadding,
                                       textSize.height + ScrubberLabelVerticalPadding);
     
-    if (scrubbingValue == ORKCGFloatInvalidValue) {
+    if (scrubbingValue == ORKDoubleInvalidValue) {
         [self setScrubberAccessoryViewsHidden:YES];
     } else {
         [self setScrubberAccessoryViewsHidden:NO];
     }
-}
-
-- (CGFloat)snappedXPosition:(CGFloat)xPosition plotIndex:(NSInteger)plotIndex {
-    NSInteger numberOfXAxisPoints = self.numberOfXAxisPoints;
-    CGFloat widthBetweenPoints = CGRectGetWidth(_plotView.frame) / numberOfXAxisPoints;
-    NSUInteger positionCount = _dataPoints[plotIndex].count;
-    for (NSUInteger positionIndex = 0; positionIndex < positionCount; positionIndex++) {
-        
-        CGFloat dataPointValue = _dataPoints[plotIndex][positionIndex].maximumValue;
-        
-        if (dataPointValue != ORKCGFloatInvalidValue) {
-            CGFloat value = xAxisPoint(positionIndex, numberOfXAxisPoints, _plotView.bounds.size.width);
-            
-            if (fabs(value - xPosition) < (widthBetweenPoints * SnappingClosenessFactor)) {
-                xPosition = value;
-            }
-        }
-    }
-    return xPosition;
-}
-
-- (CGFloat)valueForCanvasXPosition:(CGFloat)xPosition plotIndex:(NSInteger)plotIndex {
-    BOOL snapped = [self isXPositionSnapped:xPosition];
-    CGFloat value = ORKCGFloatInvalidValue;
-    if (snapped) {
-        
-        NSInteger positionIndex = 0;
-        NSInteger numberOfXAxisPoints = self.numberOfXAxisPoints;
-        for (positionIndex = 0; positionIndex < (numberOfXAxisPoints - 1); positionIndex++) {
-            CGFloat xAxisPointValue = xAxisPoint(positionIndex, numberOfXAxisPoints, _plotView.bounds.size.width);
-            if (xAxisPointValue == xPosition) {
-                break;
-            }
-        }
-        value = _dataPoints[plotIndex][positionIndex].maximumValue;
-    }
-    return value;
 }
 
 - (void)setScrubberViewsHidden:(BOOL)hidden animated:(BOOL)animated {
@@ -832,16 +756,81 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
     }
 }
 
-- (NSInteger)pointIndexForXPosition:(CGFloat)xPosition {
+- (NSInteger)pointIndexForXPosition:(CGFloat)xPosition plotIndex:(NSInteger)plotIndex {
     NSInteger pointIndex = 0;
     NSInteger numberOfXAxisPoints = self.numberOfXAxisPoints;
     for (pointIndex = 0; pointIndex < (numberOfXAxisPoints - 1); pointIndex++) {
         CGFloat xAxisPointValue = xAxisPoint(pointIndex, numberOfXAxisPoints, _plotView.bounds.size.width);
-        if (xAxisPointValue > xPosition) {
+        if (xAxisPointValue >= xPosition) {
             break;
         }
     }
     return pointIndex;
+}
+
+- (NSInteger)numberOfValidValuesForPlotIndex:(NSInteger)plotIndex {
+    NSInteger count = 0;
+    
+    if (plotIndex < _dataPoints.count) {
+        for (ORKValueRange *rangePoint in _dataPoints[plotIndex]) {
+            if (!rangePoint.isUnset) {
+                count++;
+            }
+        }
+    }
+    return count;
+}
+
+- (BOOL)isXPositionSnapped:(CGFloat)xPosition plotIndex:(NSInteger)plotIndex {
+    BOOL snapped = NO;
+    CGFloat viewWidth = _plotView.bounds.size.width;
+    NSInteger numberOfXAxisPoints = self.numberOfXAxisPoints;
+    for (NSInteger idx = 0; idx < numberOfXAxisPoints; idx++) {
+        if (xPosition == xAxisPoint(idx, numberOfXAxisPoints, viewWidth)) {
+            snapped = YES;
+            break;
+        }
+    }
+    return snapped;
+}
+
+- (CGFloat)snappedXPosition:(CGFloat)xPosition plotIndex:(NSInteger)plotIndex {
+    NSInteger numberOfXAxisPoints = self.numberOfXAxisPoints;
+    CGFloat widthBetweenPoints = CGRectGetWidth(self.plotView.frame) / numberOfXAxisPoints;
+    NSUInteger positionCount = self.dataPoints[plotIndex].count;
+    for (NSUInteger pointIndex = 0; pointIndex < positionCount; pointIndex++) {
+        
+        double scrubbingValue = [self scrubbingValueForPlotIndex:plotIndex pointIndex:pointIndex];
+        
+        if (scrubbingValue != ORKDoubleInvalidValue) {
+            CGFloat snappedXPosition = xAxisPoint(pointIndex, numberOfXAxisPoints, self.plotView.bounds.size.width);
+            
+            if (fabs(snappedXPosition - xPosition) < (widthBetweenPoints * SnappingClosenessFactor)) {
+                xPosition = snappedXPosition;
+            }
+        }
+    }
+    return xPosition;
+}
+
+- (double)scrubbingLabelValueForCanvasXPosition:(CGFloat)xPosition plotIndex:(NSInteger)plotIndex {
+    double value = ORKDoubleInvalidValue;
+    BOOL snapped = [self isXPositionSnapped:xPosition plotIndex:(NSInteger)plotIndex];
+    if (snapped) {
+        NSInteger pointIndex = [self pointIndexForXPosition:xPosition plotIndex:plotIndex];
+        value = [self scrubbingValueForPlotIndex:plotIndex pointIndex:pointIndex];;
+    }
+    return value;
+}
+
+- (double)canvasYPositionForXPosition:(CGFloat)xPosition plotIndex:(NSInteger)plotIndex {
+    BOOL snapped = [self isXPositionSnapped:xPosition plotIndex:plotIndex];
+    double canvasYPosition = 0;
+    if (snapped) {
+        NSInteger pointIndex = [self pointIndexForXPosition:xPosition plotIndex:plotIndex];
+        canvasYPosition = [self scrubbingYAxisPointForPlotIndex:plotIndex pointIndex:pointIndex];
+    }
+    return canvasYPosition;
 }
 
 #pragma Mark - Animation
@@ -850,42 +839,37 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
     if (duration < 0) {
         @throw [NSException exceptionWithName:NSGenericException reason:@"animationDuration cannot be lower than 0" userInfo:nil];
     }
-    for (NSUInteger plotIndex = 0; plotIndex < _pointLayers.count; plotIndex++) {
-        [_pointLayers[plotIndex] makeObjectsPerformSelector:@selector(removeAllAnimations)];
-        [_lineLayers[plotIndex] makeObjectsPerformSelector:@selector(removeAllAnimations)];
-        for (CAShapeLayer *lineLayer in _lineLayers[plotIndex]) {
-            lineLayer.strokeEnd = 0;
-        }
-        for (CAShapeLayer *pointLayer in _pointLayers[plotIndex]) {
-            pointLayer.opacity = 0;
-        }
+    for (NSUInteger plotIndex = 0; plotIndex < [self numberOfPlots]; plotIndex++) {
+        [self prepareAnimationsForPlotIndex:plotIndex];
+        [self animateLayersSequentiallyWithDuration:duration plotIndex:plotIndex];
     }
-    [self animateLayersSequentiallyWithDuration:duration];
 }
 
-- (void)animateLayersSequentiallyWithDuration:(NSTimeInterval)duration {
-    
-    for (NSUInteger plotIndex = 0; plotIndex < _pointLayers.count; plotIndex++) {
-        
-        NSUInteger numberOfPoints = _pointLayers[plotIndex].count;
-        if (numberOfPoints > 0) {
-            CGFloat pointFadeDuration = duration / numberOfPoints;
-            CGFloat pointDelay = 0.0;
-            for (NSUInteger pointIndex = 0; pointIndex < numberOfPoints; pointIndex++) {
-                CALayer *layer = _pointLayers[plotIndex][pointIndex];
-                [self animateLayer:layer keyPath:@"opacity" duration:pointFadeDuration startDelay:pointDelay];
-                pointDelay += pointFadeDuration;
-            }
+- (void)prepareAnimationsForPlotIndex:(NSInteger)plotIndex {
+    for (NSMutableArray <CAShapeLayer *> *sublineLayers in self.lineLayers[plotIndex]) {
+        [sublineLayers makeObjectsPerformSelector:@selector(removeAllAnimations)];
+        for (CAShapeLayer *lineLayer in sublineLayers) {
+            lineLayer.strokeEnd = 0;
         }
-        
-        NSUInteger numberOfLines = _lineLayers[plotIndex].count;
-        if (numberOfLines > 0) {
-            CGFloat lineFadeDuration = duration / numberOfLines;
-            CGFloat lineDelay = 0.0;
-            for (NSUInteger lineIndex = 0; lineIndex < numberOfLines; lineIndex++) {
-                CAShapeLayer *layer = _lineLayers[plotIndex][lineIndex];
-                [self animateLayer:layer keyPath:@"strokeEnd" duration:lineFadeDuration startDelay:lineDelay];
-                lineDelay += lineFadeDuration;
+    }
+}
+
+- (void)animateLayersSequentiallyWithDuration:(NSTimeInterval)duration plotIndex:(NSInteger)plotIndex {
+    NSUInteger numberOfLines = self.lineLayers[plotIndex].count;
+    if (numberOfLines > 0) {
+        CGFloat lineFadeDuration = duration / numberOfLines;
+        CGFloat lineDelay = 0.0;
+        for (NSUInteger lineIndex = 0; lineIndex < numberOfLines; lineIndex++) {
+            NSUInteger numberOfSublines = self.lineLayers[plotIndex][lineIndex].count;
+            if (numberOfSublines > 0) {
+                CGFloat sublineFadeDuration = lineFadeDuration / numberOfSublines;
+                CGFloat sublineDelay = 0.0;
+                for (NSUInteger sublineIndex = 0; sublineIndex < numberOfSublines; sublineIndex++) {
+                    CAShapeLayer *layer = self.lineLayers[plotIndex][lineIndex][sublineIndex];
+                    [self animateLayer:layer keyPath:@"strokeEnd" duration:sublineFadeDuration startDelay:lineDelay + sublineDelay];
+                    sublineDelay += sublineFadeDuration;
+                }
+                lineDelay += sublineDelay;
             }
         }
     }
@@ -921,101 +905,6 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
     [layer addAnimation:animation forKey:keyPath];
 }
 
-- (NSInteger)numberOfValidValuesForPlotIndex:(NSInteger)plotIndex {
-    NSInteger count = 0;
-    
-    for (ORKRangedPoint *rangePoint in _dataPoints[plotIndex]) {
-        if (!rangePoint.isUnset) {
-            count++;
-        }
-    }
-    return count;
-}
-
-- (NSMutableArray<ORKRangedPoint *> *)normalizedCanvasPointsForPlotIndex:(NSInteger)plotIndex canvasHeight:(CGFloat)viewHeight {
-    NSMutableArray<ORKRangedPoint *> *normalizedPoints = [NSMutableArray new];
-    
-    NSUInteger pointCount = _dataPoints[plotIndex].count;
-    for (NSUInteger pointIndex = 0; pointIndex < pointCount; pointIndex++) {
-        
-        ORKRangedPoint *normalizedRangePoint = [ORKRangedPoint new];
-        ORKRangedPoint *dataPointValue = _dataPoints[plotIndex][pointIndex];
-        
-        if (dataPointValue.isUnset) {
-            normalizedRangePoint.minimumValue = normalizedRangePoint.maximumValue = viewHeight;
-        } else if (_minimumValue == _maximumValue) {
-            normalizedRangePoint.minimumValue = normalizedRangePoint.maximumValue = viewHeight / 2;
-        } else {
-            CGFloat range = _maximumValue - _minimumValue;
-            CGFloat normalizedMinimumValue = (dataPointValue.minimumValue - _minimumValue) / range * viewHeight;
-            CGFloat normalizedMaximumValue = (dataPointValue.maximumValue - _minimumValue) / range * viewHeight;
-            
-            normalizedRangePoint.minimumValue = viewHeight - normalizedMinimumValue;
-            normalizedRangePoint.maximumValue = viewHeight - normalizedMaximumValue;
-        }
-        [normalizedPoints addObject:normalizedRangePoint];
-    }
-    
-    return normalizedPoints;
-}
-
-- (void)calculateMinAndMaxValues {
-    _minimumValue = ORKCGFloatInvalidValue;
-    _maximumValue = ORKCGFloatInvalidValue;
-    
-    BOOL minimumValueProvided = NO;
-    BOOL maximumValueProvided = NO;
-    
-    if ([_dataSource respondsToSelector:@selector(minimumValueForGraphChartView:)]) {
-        _minimumValue = [_dataSource minimumValueForGraphChartView:self];
-        minimumValueProvided = YES;
-    }
-    
-    if ([_dataSource respondsToSelector:@selector(maximumValueForGraphChartView:)]) {
-        _maximumValue = [_dataSource maximumValueForGraphChartView:self];
-        maximumValueProvided = YES;
-    }
-    
-    if (!minimumValueProvided || !maximumValueProvided) {
-        NSInteger numberOfPlots = [self numberOfPlots];
-        for (NSInteger plotIndex = 0; plotIndex < numberOfPlots; plotIndex++) {
-            NSInteger numberOfPlotPoints = _dataPoints[plotIndex].count;
-            for (NSInteger pointIndex = 0; pointIndex < numberOfPlotPoints; pointIndex++) {
-                ORKRangedPoint *point = _dataPoints[plotIndex][pointIndex];
-                if (!minimumValueProvided &&
-                    point.minimumValue != ORKCGFloatInvalidValue &&
-                    ((_minimumValue == ORKCGFloatInvalidValue) || (point.minimumValue < _minimumValue))) {
-                    _minimumValue = point.minimumValue;
-                }
-                if (!maximumValueProvided &&
-                    point.maximumValue != ORKCGFloatInvalidValue &&
-                    ((_maximumValue == ORKCGFloatInvalidValue) || (point.maximumValue > _maximumValue))) {
-                    _maximumValue = point.maximumValue;
-                }
-            }
-        }
-    }
-    
-    if (_minimumValue == ORKCGFloatInvalidValue) {
-        _minimumValue = 0;
-    }
-    if (_maximumValue == ORKCGFloatInvalidValue) {
-        _maximumValue = 0;
-    }
-}
-
-- (BOOL)isXPositionSnapped:(CGFloat)xPosition {
-    BOOL snapped = NO;
-    CGFloat viewWidth = _plotView.bounds.size.width;
-    NSInteger numberOfXAxisPoints = self.numberOfXAxisPoints;
-    for (NSInteger idx = 0; idx < numberOfXAxisPoints; idx++) {
-        if (xPosition == xAxisPoint(idx, numberOfXAxisPoints, viewWidth)) {
-            snapped = YES;
-        }
-    }
-    return snapped;
-}
-
 #pragma mark - Abstract
 
 - (void)throwOverrideException {
@@ -1024,13 +913,19 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
                                  userInfo:nil];
 }
 
-- (void)scrubReferenceLineForXPosition:(CGFloat)xPosition {
+- (NSObject<ORKValueCollectionType> *)dataPointForPointIndex:(NSInteger)pointIndex plotIndex:(NSInteger)plotIndex {
     [self throwOverrideException];
+    return nil;
 }
 
-- (CGFloat)canvasYPointForXPosition:(CGFloat)xPosition plotIndex:(NSInteger)plotIndex {
+- (NSObject<ORKValueCollectionType> *)dummyPoint {
     [self throwOverrideException];
-    return 0;
+    return nil;
+}
+
+- (NSMutableArray<NSObject<ORKValueCollectionType> *> *)normalizedCanvasDataPointsForPlotIndex:(NSInteger)plotIndex canvasHeight:(CGFloat)viewHeight {
+    [self throwOverrideException];
+    return nil;
 }
 
 - (void)updateLineLayersForPlotIndex:(NSInteger)plotIndex {
@@ -1046,6 +941,28 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
     return NO;
 }
 
+- (void)calculateMinAndMaxValues {
+    [self throwOverrideException];
+}
+
+- (double)scrubbingValueForPlotIndex:(NSInteger)plotIndex pointIndex:(NSInteger)pointIndex {
+    [self throwOverrideException];
+    return 0;
+}
+
+- (double)scrubbingYAxisPointForPlotIndex:(NSInteger)plotIndex pointIndex:(NSInteger)pointIndex {
+    [self throwOverrideException];
+    return 0;
+}
+
+- (void)updatePointLayers {
+    [self throwOverrideException];
+}
+
+- (void)layoutPointLayers {
+    [self throwOverrideException];
+}
+
 #pragma mark - Accessibility
 
 - (BOOL)isAccessibilityElement {
@@ -1055,12 +972,15 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
 #pragma mark - Accessibility Helpers
 
 - (void)_axVoiceOverStatusChanged:(NSNotification *)notification {
-    if (UIAccessibilityIsVoiceOverRunning()) {
-        [self _axCreateAccessibilityElements];
-    }
+    [self _axCreateAccessibilityElementsIfNeeded];
 }
 
-- (void)_axCreateAccessibilityElements {
+- (void)_axCreateAccessibilityElementsIfNeeded {
+    if (!UIAccessibilityIsVoiceOverRunning()) {
+        // No need to creating accessibility elements if Voice Over is not running
+        return;
+    }
+    
     NSInteger maxNumberOfPoints = [[_dataPoints valueForKeyPath:@"@max.@count.self"] integerValue];
     NSMutableArray<id> *accessibilityElements = [[NSMutableArray alloc] initWithCapacity:maxNumberOfPoints];
     
@@ -1074,15 +994,15 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
             // Boundary check
             if ( pointIndex < _dataPoints[plotIndex].count ) {
                 NSString *and = (value == nil || value.length == 0 ? nil : ORKLocalizedString(@"AX_GRAPH_AND_SEPARATOR", nil));
-                ORKRangedPoint *rangePoint = _dataPoints[plotIndex][pointIndex];
-                value = ORKAccessibilityStringForVariables(value, and, rangePoint.accessibilityLabel);
+                NSObject<ORKValueCollectionType> *dataPoint = _dataPoints[plotIndex][pointIndex];
+                value = ORKAccessibilityStringForVariables(value, and, dataPoint.accessibilityLabel);
             }
         }
         
         if ([_dataSource respondsToSelector:@selector(graphChartView:titleForXAxisAtPointIndex:)]) {
             element.accessibilityLabel = [self.dataSource graphChartView:self titleForXAxisAtPointIndex:pointIndex];
         } else {
-            element.accessibilityLabel = [NSString stringWithFormat:ORKLocalizedString(@"AX_CHART_POINT_%@", nil), ORKLocalizedStringFromNumber(@(pointIndex))];
+            element.accessibilityLabel = [NSString stringWithFormat:ORKLocalizedString(@"AX_GRAPH_POINT_%@", nil), ORKLocalizedStringFromNumber(@(pointIndex))];
         }
         element.accessibilityValue = value;
         [accessibilityElements addObject:element];
@@ -1092,3 +1012,330 @@ inline static CALayer *graphPointLayerWithColor(UIColor *color) {
 }
 
 @end
+
+
+@implementation ORKValueRangeGraphChartView {
+    NSMutableArray<NSMutableArray<CALayer *> *> *_pointLayers;
+}
+
+@dynamic dataSource;
+@dynamic dataPoints;
+@dynamic yAxisPoints;
+
+- (void)sharedInit {
+    [super sharedInit];
+    _pointLayers = [NSMutableArray new];
+}
+
+- (void)reloadData {
+    [super reloadData];
+    [self updatePointLayers];
+    [self setNeedsLayout];
+}
+
+- (ORKValueRange *)dataPointForPointIndex:(NSInteger)pointIndex plotIndex:(NSInteger)plotIndex {
+    return [self.dataSource graphChartView:self dataPointForPointIndex:pointIndex plotIndex:plotIndex];
+}
+
+- (ORKValueRange *)dummyPoint {
+    return [ORKValueRange new];
+}
+
+- (NSMutableArray<ORKValueRange *> *)normalizedCanvasDataPointsForPlotIndex:(NSInteger)plotIndex canvasHeight:(CGFloat)viewHeight {
+    NSMutableArray<ORKValueRange *> *normalizedPoints = [NSMutableArray new];
+    
+    if (plotIndex < self.dataPoints.count) {
+        NSUInteger pointCount = self.dataPoints[plotIndex].count;
+        for (NSUInteger pointIndex = 0; pointIndex < pointCount; pointIndex++) {
+            
+            ORKValueRange *normalizedRangePoint = [ORKValueRange new];
+            ORKValueRange *dataPointValue = self.dataPoints[plotIndex][pointIndex];
+            
+            if (dataPointValue.isUnset) {
+                normalizedRangePoint.minimumValue = normalizedRangePoint.maximumValue = viewHeight;
+            } else if (self.minimumValue == self.maximumValue) {
+                normalizedRangePoint.minimumValue = normalizedRangePoint.maximumValue = viewHeight / 2;
+            } else {
+                double range = self.maximumValue - self.minimumValue;
+                double normalizedMinimumValue = (dataPointValue.minimumValue - self.minimumValue) / range * viewHeight;
+                double normalizedMaximumValue = (dataPointValue.maximumValue - self.minimumValue) / range * viewHeight;
+                
+                normalizedRangePoint.minimumValue = viewHeight - normalizedMinimumValue;
+                normalizedRangePoint.maximumValue = viewHeight - normalizedMaximumValue;
+            }
+            [normalizedPoints addObject:normalizedRangePoint];
+        }
+    }
+    
+    return normalizedPoints;
+}
+
+- (void)calculateMinAndMaxValues {
+    self.minimumValue = ORKDoubleInvalidValue;
+    self.maximumValue = ORKDoubleInvalidValue;
+    
+    BOOL minimumValueProvided = NO;
+    BOOL maximumValueProvided = NO;
+    
+    if ([self.dataSource respondsToSelector:@selector(minimumValueForGraphChartView:)]) {
+        self.minimumValue = [self.dataSource minimumValueForGraphChartView:self];
+        minimumValueProvided = YES;
+    }
+    
+    if ([self.dataSource respondsToSelector:@selector(maximumValueForGraphChartView:)]) {
+        self.maximumValue = [self.dataSource maximumValueForGraphChartView:self];
+        maximumValueProvided = YES;
+    }
+    
+    if (!minimumValueProvided || !maximumValueProvided) {
+        NSInteger numberOfPlots = [self numberOfPlots];
+        for (NSInteger plotIndex = 0; plotIndex < numberOfPlots; plotIndex++) {
+            NSInteger numberOfPlotPoints = self.dataPoints[plotIndex].count;
+            for (NSInteger pointIndex = 0; pointIndex < numberOfPlotPoints; pointIndex++) {
+                ORKValueRange *point = self.dataPoints[plotIndex][pointIndex];
+                if (!minimumValueProvided &&
+                    point.minimumValue != ORKDoubleInvalidValue &&
+                    ((self.minimumValue == ORKDoubleInvalidValue) || (point.minimumValue < self.minimumValue))) {
+                    self.minimumValue = point.minimumValue;
+                }
+                if (!maximumValueProvided &&
+                    point.maximumValue != ORKDoubleInvalidValue &&
+                    ((self.maximumValue == ORKDoubleInvalidValue) || (point.maximumValue > self.maximumValue))) {
+                    self.maximumValue = point.maximumValue;
+                }
+            }
+        }
+    }
+    
+    if (self.minimumValue == ORKDoubleInvalidValue) {
+        self.minimumValue = 0;
+    }
+    if (self.maximumValue == ORKDoubleInvalidValue) {
+        self.maximumValue = 0;
+    }
+}
+
+#pragma mark - Layout & Drawing
+
+- (void)updatePointLayersForPlotIndex:(NSInteger)plotIndex {
+    if (plotIndex < self.dataPoints.count) {
+        UIColor *color = [self colorForPlotIndex:plotIndex];
+        NSUInteger pointCount = self.dataPoints[plotIndex].count;
+        for (NSUInteger pointIndex = 0; pointIndex < pointCount; pointIndex++) {
+            ORKValueRange *dataPoint = self.dataPoints[plotIndex][pointIndex];
+            if (!dataPoint.isUnset) {
+                BOOL drawPointIndicator = [self shouldDrawPointIndicatorForPointWithIndex:pointIndex inPlotWithIndex:plotIndex];
+                CALayer *pointLayer = graphPointLayerWithColor(color, drawPointIndicator);
+                [self.plotView.layer addSublayer:pointLayer];
+                [_pointLayers[plotIndex] addObject:pointLayer];
+                
+                if (!dataPoint.isEmptyRange) {
+                    CALayer *pointLayer = graphPointLayerWithColor(color, drawPointIndicator);
+                    [self.plotView.layer addSublayer:pointLayer];
+                    [_pointLayers[plotIndex] addObject:pointLayer];
+                }
+            }
+        }
+    }
+}
+
+- (void)updatePlotColorsForPlotIndex:(NSInteger)plotIndex {
+    [super updatePlotColorsForPlotIndex:plotIndex];
+    UIColor *color = [self colorForPlotIndex:plotIndex];
+    for (NSUInteger pointIndex = 0; pointIndex < _pointLayers[plotIndex].count; pointIndex++) {
+        CALayer *pointLayer = _pointLayers[plotIndex][pointIndex];
+        if (pointLayer.contents) {
+            pointLayer.contents = (__bridge id)(graphPointLayerImageWithColor(color).CGImage);
+        }
+    }
+}
+
+- (void)updatePointLayers {
+    for (NSInteger plotIndex = 0; plotIndex < _pointLayers.count; plotIndex++) {
+        [_pointLayers[plotIndex] makeObjectsPerformSelector:@selector(removeFromSuperlayer)];
+    }
+    [_pointLayers removeAllObjects];
+    
+    NSInteger numberOfPlots = [self numberOfPlots];
+    for (NSInteger plotIndex = 0; plotIndex < numberOfPlots; plotIndex++) {
+        NSMutableArray<CALayer *> *currentPlotPointLayers = [NSMutableArray new];
+        [_pointLayers addObject:currentPlotPointLayers];
+        [self updatePointLayersForPlotIndex:plotIndex];
+    }
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    [self layoutPointLayers];
+}
+
+- (void)layoutPointLayers {
+    NSInteger numberOfPlots = [self numberOfPlots];
+    
+    if (self.yAxisPoints.count != numberOfPlots) {
+        // avoid layout if points have not been normalized yet
+        return;
+    }
+    
+    for (NSInteger plotIndex = 0; plotIndex < numberOfPlots; plotIndex++) {
+        [self layoutPointLayersForPlotIndex:plotIndex];
+    }
+}
+
+- (void)layoutPointLayersForPlotIndex:(NSInteger)plotIndex {
+    if (plotIndex < self.dataPoints.count) {
+        NSUInteger pointLayerIndex = 0;
+        for (NSUInteger pointIndex = 0; pointIndex < self.dataPoints[plotIndex].count; pointIndex++) {
+            ORKValueRange *dataPointValue = self.dataPoints[plotIndex][pointIndex];
+            if (!dataPointValue.isUnset) {
+                CGFloat positionOnXAxis = xAxisPoint(pointIndex, self.numberOfXAxisPoints, self.plotView.bounds.size.width);
+                positionOnXAxis += [self xOffsetForPlotIndex:plotIndex];
+                ORKValueRange *yAxisValueRange = self.yAxisPoints[plotIndex][pointIndex];
+                CALayer *pointLayer = _pointLayers[plotIndex][pointLayerIndex];
+                pointLayer.position = CGPointMake(positionOnXAxis, yAxisValueRange.minimumValue);
+                pointLayerIndex++;
+                
+                if (!yAxisValueRange.isEmptyRange) {
+                    CALayer *pointLayer = _pointLayers[plotIndex][pointLayerIndex];
+                    pointLayer.position = CGPointMake(positionOnXAxis, yAxisValueRange.maximumValue);
+                    pointLayerIndex++;
+                }
+            }
+        }
+    }
+}
+
+#pragma mark - Scrubbing
+
+- (double)scrubbingValueForPlotIndex:(NSInteger)plotIndex pointIndex:(NSInteger)pointIndex {
+    return self.dataPoints[plotIndex][pointIndex].maximumValue;
+}
+
+- (double)scrubbingYAxisPointForPlotIndex:(NSInteger)plotIndex pointIndex:(NSInteger)pointIndex {
+    return self.yAxisPoints[plotIndex][pointIndex].maximumValue;
+}
+
+#pragma mark - Animation
+
+- (void)prepareAnimationsForPlotIndex:(NSInteger)plotIndex {
+    [super prepareAnimationsForPlotIndex:plotIndex];
+    [_pointLayers[plotIndex] makeObjectsPerformSelector:@selector(removeAllAnimations)];
+    for (CAShapeLayer *pointLayer in _pointLayers[plotIndex]) {
+        pointLayer.opacity = 0;
+    }
+}
+
+- (void)animateLayersSequentiallyWithDuration:(NSTimeInterval)duration plotIndex:(NSInteger)plotIndex {
+    [super animateLayersSequentiallyWithDuration:duration plotIndex:plotIndex];
+    NSUInteger numberOfPoints = _pointLayers[plotIndex].count;
+    if (numberOfPoints > 0) {
+        CGFloat pointFadeDuration = duration / numberOfPoints;
+        CGFloat pointDelay = 0.0;
+        for (NSUInteger pointIndex = 0; pointIndex < numberOfPoints; pointIndex++) {
+            CALayer *layer = _pointLayers[plotIndex][pointIndex];
+            [self animateLayer:layer keyPath:@"opacity" duration:pointFadeDuration startDelay:pointDelay];
+            pointDelay += pointFadeDuration;
+        }
+    }
+}
+
+#pragma mark - Interface Builder designable
+
+- (void)prepareForInterfaceBuilder {
+    [self reloadData];
+}
+
+@end
+
+
+#if TARGET_INTERFACE_BUILDER
+
+@implementation ORKIBSampleDiscreteGraphDataSource
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        self.plotPoints = @[@[[[ORKRangedPoint alloc] initWithMinimumValue: 0 maximumValue: 2],
+                              [[ORKRangedPoint alloc] initWithMinimumValue: 1 maximumValue: 4],
+                              [[ORKRangedPoint alloc] initWithMinimumValue: 2 maximumValue: 6],
+                              [[ORKRangedPoint alloc] initWithMinimumValue: 3 maximumValue: 8],
+                              [[ORKRangedPoint alloc] initWithMinimumValue: 5 maximumValue: 10],
+                              [[ORKRangedPoint alloc] initWithMinimumValue: 8 maximumValue: 13]],
+                            @[[[ORKRangedPoint alloc] initWithValue: 1],
+                              [[ORKRangedPoint alloc] initWithMinimumValue: 2 maximumValue: 6],
+                              [[ORKRangedPoint alloc] initWithMinimumValue: 3 maximumValue: 10],
+                              [[ORKRangedPoint alloc] initWithMinimumValue: 5 maximumValue: 11],
+                              [[ORKRangedPoint alloc] initWithMinimumValue: 7 maximumValue: 13],
+                              [[ORKRangedPoint alloc] initWithMinimumValue: 10 maximumValue: 13]
+                              ]];
+    }
+    return self;
+}
+
+- (NSInteger)numberOfPlotsInGraphChartView:(ORKGraphChartView *)graphChartView {
+    return self.plotPoints.count;
+}
+
+- (NSInteger)graphChartView:(ORKGraphChartView *)graphChartView numberOfDataPointsForPlotIndex:(NSInteger)plotIndex {
+    return self.plotPoints[plotIndex].count;
+}
+
+- (ORKRangedPoint *)graphChartView:(ORKGraphChartView *)graphChartView dataPointForPointIndex:(NSInteger)pointIndex plotIndex:(NSInteger)plotIndex {
+    return self.plotPoints[plotIndex][pointIndex];
+}
+
+- (NSString *)graphChartView:(ORKGraphChartView *)graphChartView titleForXAxisAtPointIndex:(NSInteger)pointIndex {
+    return [@(pointIndex + 1) stringValue];
+}
+
+@end
+
+
+@implementation ORKIBSampleLineGraphDataSource
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        self.plotPoints = @[@[[[ORKRangedPoint alloc] initWithValue: 10],
+                              [[ORKRangedPoint alloc] initWithValue: 20],
+                              [[ORKRangedPoint alloc] initWithValue: 25],
+                              [[ORKRangedPoint alloc] init],
+                              [[ORKRangedPoint alloc] initWithValue: 30],
+                              [[ORKRangedPoint alloc] initWithValue: 40]],
+                            @[[[ORKRangedPoint alloc] initWithValue: 2],
+                              [[ORKRangedPoint alloc] initWithValue: 4],
+                              [[ORKRangedPoint alloc] initWithValue: 8],
+                              [[ORKRangedPoint alloc] initWithValue: 16],
+                              [[ORKRangedPoint alloc] initWithValue: 32],
+                              [[ORKRangedPoint alloc] initWithValue: 64]
+                              ]];
+    }
+    return self;
+}
+
+- (NSInteger)numberOfPlotsInGraphChartView:(ORKGraphChartView *)graphChartView {
+    return self.plotPoints.count;
+}
+
+- (NSInteger)graphChartView:(ORKGraphChartView *)graphChartView numberOfDataPointsForPlotIndex:(NSInteger)plotIndex {
+    return self.plotPoints[plotIndex].count;
+}
+
+- (ORKRangedPoint *)graphChartView:(ORKGraphChartView *)graphChartView dataPointForPointIndex:(NSInteger)pointIndex plotIndex:(NSInteger)plotIndex {
+    return self.plotPoints[plotIndex][pointIndex];
+}
+
+- (NSString *)graphChartView:(ORKGraphChartView *)graphChartView titleForXAxisAtPointIndex:(NSInteger)pointIndex {
+    return [@(pointIndex + 1) stringValue];
+}
+
+- (CGFloat)minimumValueForGraphChartView:(ORKGraphChartView *)graphChartView {
+    return 0;
+}
+
+- (CGFloat)maximumValueForGraphChartView:(ORKGraphChartView *)graphChartView {
+    return 70;
+}
+
+@end
+#endif
