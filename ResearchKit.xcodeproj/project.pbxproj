@@ -2673,7 +2673,6 @@
 				147503B91AEE807C004B17F3 /* ORKToneAudiometryStep.h in Headers */,
 				106FF2A21B665B86004EACF2 /* ORKHolePegTestPlaceStepViewController.h in Headers */,
 				24A4DA101B8D0F21009C797A /* ORKPasscodeStepView.h in Headers */,
-				86C40C9A1A8D7C5C00081FAC /* ORKDataLogger_Private.h in Headers */,
 				2489F7B11D65214D008DEF20 /* ORKVideoCaptureStep.h in Headers */,
 				861D11AD1AA7951F003C98A7 /* ORKChoiceAnswerFormatHelper.h in Headers */,
 				86C40C461A8D7C5C00081FAC /* ORKSpatialSpanMemoryStepViewController.h in Headers */,
@@ -2742,6 +2741,7 @@
 						CreatedOnToolsVersion = 6.2;
 					};
 					B183A4731A8535D100C76870 = {
+						DevelopmentTeam = 4CFBTQ63L7;
 						LastSwiftMigration = 0800;
 					};
 					B18FF3A41A9FE25700C0C3B0 = {
@@ -3333,6 +3333,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				DEAD_CODE_STRIPPING = YES;
 				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = 4CFBTQ63L7;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
@@ -3369,6 +3370,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				DEAD_CODE_STRIPPING = YES;
 				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = 4CFBTQ63L7;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
