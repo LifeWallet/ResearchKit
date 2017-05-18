@@ -81,7 +81,7 @@
         NSString *imageTag = nil;
 
         if (signature.signatureImage) {
-            NSString *base64 = [UIImagePNGRepresentation(signature.signatureImage) base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength];
+            NSString *base64 = [UIImageJPEGRepresentation(signature.signatureImage, 0.5f) base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength];
             imageTag = [NSString stringWithFormat:@"<img width='100%%' alt='star' src='data:image/png;base64,%@' />", base64];
         } else {
             [body appendString:@"<br/>"];
