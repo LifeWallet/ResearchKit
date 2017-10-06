@@ -35,13 +35,9 @@
 #import "ORKStepViewController.h"
 
 #import "ORKOrderedTask.h"
-//<<<<<<< HEAD
 #import "ORKSingleton.h"
-//=======
 #import "ORKStepViewController_Internal.h"
-
 #import "ORKHelpers_Internal.h"
-//>>>>>>> upstream/stable
 
 
 @implementation ORKStep
@@ -176,5 +172,9 @@
 
 + (void)setUpLanguageWithPrefix:(NSString *)prefix{
     [ORKSingleton sharedSingleton].currentLanguage = prefix;
+}
+
+- (NSSet<HKObjectType *> *)requestedHealthKitTypesForReading {
+    return nil;
 }
 @end
